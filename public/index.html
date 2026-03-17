@@ -297,7 +297,7 @@
             <th class="col-double">Double bond<br>(alkene)<span class="ppm-range">100 – 160 ppm</span></th>
             <th class="col-single">Single bond<span class="ppm-range">0 – 50 ppm</span></th>
             <th class="col-ac">Allene<br>Central<span class="ppm-range">&gt; 200 ppm</span></th>
-            <th class="col-af">Allene<br>Flanking<span class="ppm-range">70 – 100 ppm*</span></th>
+            <th class="col-af">Allene<br>Flanking<span class="ppm-range">70 – 100 ppm</span></th>
             <th class="col-unknown">Other / Unclassified<span class="ppm-range">50 – 70, 160 – 200 ppm</span></th>
           </tr>
         </thead>
@@ -305,6 +305,24 @@
       </table>
     </div>
     <div id="total-line" style="margin-top:0.75rem; font-size:0.82rem; color:#64748b;"></div>
+  </div>
+
+  <!-- structural information table -->
+  <div class="card" id="struct-card">
+    <h2>Structural information deduced</h2>
+    <div class="table-wrap">
+      <table id="struct-table">
+        <thead>
+          <tr>
+            <th class="col-triple">No. of triple bonds<span class="ppm-range">2 DBE each</span></th>
+            <th class="col-double">No. of double bonds<span class="ppm-range">1 DBE each</span></th>
+            <th style="color:#94a3b8">No. of rings<span class="ppm-range">1 DBE each</span></th>
+          </tr>
+        </thead>
+        <tbody id="struct-body"></tbody>
+      </table>
+    </div>
+    <div id="struct-note" style="margin-top:0.75rem; font-size:0.78rem; color:#64748b;"></div>
   </div>
 </div>
 
@@ -396,11 +414,32 @@
     // ── build classification buckets ───────────────────────────────────────────
     const buckets = { triple: [], double: [], single: [], ac: [], af: [], unknown: [] };
 
-    // Heuristic: if there is an allene-central carbon (>200), some triple-region
-    // carbons may be allene-flanking. We flag them but put them in 'triple' by default;
-    // the flanking bucket stays 0 unless explicitly present.
+    // First pass: assign every signal by ppm region.
     for (const s of signals) {
       buckets[classify(s.ppm)].push(s);
+    }
+
+    // Allene rule: each allene-central carbon (>200 ppm) requires exactly 2
+    // flanking carbons in the 70–100 ppm range.  Move that many carbons from
+    // the triple bucket into the flanking bucket, taking signals in order.
+    const acTotal = buckets.ac.reduce((a, s) => a + s.count, 0);
+    let flankNeeded = acTotal * 2;   // number of individual carbon atoms to move
+    if (flankNeeded > 0 && buckets.triple.length > 0) {
+      const remaining = [];
+      for (const s of buckets.triple) {
+        if (flankNeeded <= 0) { remaining.push(s); continue; }
+        if (s.count <= flankNeeded) {
+          // Move the whole signal entry to flanking
+          buckets.af.push(s);
+          flankNeeded -= s.count;
+        } else {
+          // Split: some go to flanking, the rest stay as triple
+          buckets.af.push({ count: flankNeeded, ppm: s.ppm, type: s.type });
+          remaining.push({ count: s.count - flankNeeded, ppm: s.ppm, type: s.type });
+          flankNeeded = 0;
+        }
+      }
+      buckets.triple = remaining;
     }
 
     // ── render classification table ────────────────────────────────────────────
@@ -444,10 +483,53 @@
       dbeHTML = ` &nbsp; <span class="total-badge">DBE: ${parseInt(dbeRaw, 10)}</span>`;
     }
     totalLine.innerHTML = badge + dbeHTML;
-    if (buckets.triple.length > 0 && buckets.ac.length > 0) {
-      totalLine.innerHTML += `<span style="color:#64748b; font-size:0.74rem; margin-left:0.75rem;">
-        * Signals at 70–100 ppm placed in Triple bond column; some may be allene flanking if an allene central (&gt;200 ppm) is present.</span>`;
+
+    // ── structural deduction ──────────────────────────────────────────────────
+    const countTriple = buckets.triple.reduce((a, s) => a + s.count, 0);
+    const countDouble = buckets.double.reduce((a, s) => a + s.count, 0);
+    const countAC     = buckets.ac.reduce((a, s) => a + s.count, 0);
+
+    // 2 triple-bond carbons → 1 triple bond (2 DBE)
+    const nTriple = Math.floor(countTriple / 2);
+    // 2 alkene carbons → 1 double bond (1 DBE); 1 allene-central → 2 double bonds (2 DBE)
+    const nDouble = Math.floor(countDouble / 2) + (countAC * 2);
+    const dbeFromBonds = (nTriple * 2) + (nDouble * 1);
+
+    const structBody = document.getElementById('struct-body');
+    const structNote = document.getElementById('struct-note');
+    structBody.innerHTML = '';
+
+    const sRow = document.createElement('tr');
+    sRow.className = 'count-row';
+
+    const tdT = document.createElement('td');
+    tdT.className = 'col-triple';
+    tdT.textContent = nTriple;
+    sRow.appendChild(tdT);
+
+    const tdD = document.createElement('td');
+    tdD.className = 'col-double';
+    tdD.textContent = nDouble;
+    sRow.appendChild(tdD);
+
+    const tdR = document.createElement('td');
+    if (dbeRaw !== '') {
+      const dbeVal = parseInt(dbeRaw, 10);
+      const nRings = dbeVal - dbeFromBonds;
+      tdR.textContent = nRings >= 0 ? nRings : '?';
+      tdR.style.color = nRings >= 0 ? '#f8fafc' : '#f87171';
+      const dbeCheck = dbeFromBonds + Math.max(nRings, 0);
+      structNote.innerHTML =
+        `DBE from bonds: ${nTriple}×2 + ${nDouble}×1 = <strong style="color:#e2e8f0">${dbeFromBonds}</strong>` +
+        ` &nbsp;·&nbsp; Rings fill remaining: <strong style="color:#e2e8f0">${dbeVal} − ${dbeFromBonds} = ${
+          nRings >= 0 ? nRings : '<span style="color:#f87171">negative — check input</span>'}</strong>`;
+    } else {
+      tdR.textContent = '—';
+      tdR.style.color = '#475569';
+      structNote.textContent = 'Enter a DBE value to calculate the number of rings.';
     }
+    sRow.appendChild(tdR);
+    structBody.appendChild(sRow);
 
     document.getElementById('output').style.display = 'block';
     document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
