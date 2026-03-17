@@ -4,8 +4,454 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SpectraSolve</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #f8fafc;
+    }
+
+    header p {
+      margin-top: 0.4rem;
+      font-size: 0.9rem;
+      color: #64748b;
+    }
+
+    .card {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 820px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      margin-bottom: 1rem;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .field label {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    textarea, input[type="number"] {
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.88rem;
+      padding: 0.6rem 0.75rem;
+      outline: none;
+      transition: border-color 0.15s;
+      resize: vertical;
+    }
+
+    textarea { width: 580px; min-height: 130px; }
+    input[type="number"] { width: 90px; }
+
+    textarea:focus, input[type="number"]:focus {
+      border-color: #6366f1;
+    }
+
+    .hint {
+      font-size: 0.74rem;
+      color: #475569;
+      margin-top: 0.25rem;
+    }
+
+    button#analyze {
+      margin-top: 1.25rem;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.4rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    button#analyze:hover { background: #4f52d9; }
+    button#analyze:active { transform: scale(0.97); }
+
+    /* — signals list — */
+    #signals-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .signal-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 6px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.82rem;
+      font-family: 'Consolas', monospace;
+    }
+
+    .signal-chip .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* — classification table — */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    thead tr {
+      background: #161827;
+    }
+
+    th {
+      padding: 0.65rem 0.75rem;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      border-bottom: 1px solid #2d3148;
+      white-space: nowrap;
+    }
+
+    th .ppm-range {
+      display: block;
+      font-weight: 400;
+      font-size: 0.7rem;
+      color: #475569;
+      text-transform: none;
+      letter-spacing: 0;
+      margin-top: 2px;
+    }
+
+    td {
+      padding: 0.7rem 0.75rem;
+      text-align: center;
+      border-bottom: 1px solid #1e2130;
+    }
+
+    tr.count-row td {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    tr.detail-row td {
+      font-size: 0.75rem;
+      color: #64748b;
+      font-family: 'Consolas', monospace;
+      padding-top: 0;
+      vertical-align: top;
+      line-height: 1.6;
+    }
+
+    tr.total-row td {
+      font-size: 0.8rem;
+      color: #64748b;
+      padding-top: 0.5rem;
+      border-top: 1px solid #2d3148;
+      border-bottom: none;
+    }
+
+    .total-badge {
+      display: inline-block;
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 99px;
+      padding: 0.2rem 0.7rem;
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }
+
+    .total-badge.ok { border-color: #22c55e; color: #22c55e; }
+    .total-badge.warn { border-color: #f59e0b; color: #f59e0b; }
+
+    .dbe-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .dbe-value {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #e2e8f0;
+    }
+
+    /* region colours */
+    .col-triple   { color: #818cf8; }
+    .col-double   { color: #34d399; }
+    .col-single   { color: #fb923c; }
+    .col-ac       { color: #f472b6; }
+    .col-af       { color: #a78bfa; }
+    .col-unknown  { color: #64748b; }
+
+    .dot-triple  { background: #818cf8; }
+    .dot-double  { background: #34d399; }
+    .dot-single  { background: #fb923c; }
+    .dot-ac      { background: #f472b6; }
+    .dot-af      { background: #a78bfa; }
+    .dot-unknown { background: #64748b; }
+
+    #output { display: none; }
+
+    #error-msg {
+      color: #f87171;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+  </style>
 </head>
 <body>
+
+<header>
   <h1>SpectraSolve</h1>
+  <p>¹³C NMR signal parser &amp; region classifier</p>
+</header>
+
+<!-- INPUT CARD -->
+<div class="card">
+  <h2>Input</h2>
+  <div class="input-row">
+    <div class="field" style="flex:1">
+      <label for="nmr-input">NMR signals</label>
+      <textarea id="nmr-input" spellcheck="false"
+        placeholder="e.g.&#10;8 × 132 (CH)&#10;4 × 96 (C), 4 × 20 (CH2)&#10;2 × 210 (C), 134 (C), 113 (CH2), 2 × 93 (CH), 2 × 79 (CH2)"></textarea>
+      <span class="hint">Separate multiple signals with commas or new lines. Use × or x. CH, CH2, CH3, or C.</span>
+    </div>
+    <div class="field">
+      <label for="dbe-input">DBE</label>
+      <input type="number" id="dbe-input" min="0" max="50" placeholder="5" />
+    </div>
+  </div>
+  <div id="error-msg"></div>
+  <button id="analyze">Analyse →</button>
+</div>
+
+<!-- OUTPUT -->
+<div id="output">
+  <!-- parsed signals -->
+  <div class="card">
+    <h2>Parsed signals</h2>
+    <div id="signals-list"></div>
+  </div>
+
+  <!-- classification table -->
+  <div class="card">
+    <h2>Region classification</h2>
+    <div class="table-wrap">
+      <table id="class-table">
+        <thead>
+          <tr>
+            <th class="col-triple">Triple bond<br>(alkyne)<span class="ppm-range">70 – 100 ppm</span></th>
+            <th class="col-double">Double bond<br>(alkene)<span class="ppm-range">100 – 160 ppm</span></th>
+            <th class="col-single">Single bond<span class="ppm-range">0 – 50 ppm</span></th>
+            <th class="col-ac">Allene<br>Central<span class="ppm-range">&gt; 200 ppm</span></th>
+            <th class="col-af">Allene<br>Flanking<span class="ppm-range">70 – 100 ppm*</span></th>
+            <th class="col-unknown">Other / Unclassified<span class="ppm-range">50 – 70, 160 – 200 ppm</span></th>
+          </tr>
+        </thead>
+        <tbody id="class-body"></tbody>
+      </table>
+    </div>
+    <div id="total-line" style="margin-top:0.75rem; font-size:0.82rem; color:#64748b;"></div>
+  </div>
+</div>
+
+<script>
+  // ── helpers ──────────────────────────────────────────────────────────────────
+
+  function classify(ppm) {
+    if (ppm >= 0   && ppm <= 50)  return 'single';
+    if (ppm > 50   && ppm <= 100) return 'triple';   // also allene flanking – same region
+    if (ppm > 100  && ppm <= 160) return 'double';
+    if (ppm > 200)                return 'ac';        // allene central
+    return 'unknown';   // 50–70 edge, 160–200
+  }
+
+  const REGION_LABELS = {
+    triple:  { label: 'Triple bond (alkyne)',  cls: 'col-triple', dot: 'dot-triple'  },
+    double:  { label: 'Double bond (alkene)',  cls: 'col-double', dot: 'dot-double'  },
+    single:  { label: 'Single bond',           cls: 'col-single', dot: 'dot-single'  },
+    ac:      { label: 'Allene Central',        cls: 'col-ac',     dot: 'dot-ac'      },
+    af:      { label: 'Allene Flanking',       cls: 'col-af',     dot: 'dot-af'      },
+    unknown: { label: 'Other',                 cls: 'col-unknown',dot: 'dot-unknown' },
+  };
+
+  // Normalise subscript unicode digits → ASCII
+  function normaliseInput(raw) {
+    return raw
+      .replace(/\u00d7/g, 'x')    // × → x
+      .replace(/\u2080/g, '0').replace(/\u2081/g, '1').replace(/\u2082/g, '2')
+      .replace(/\u2083/g, '3').replace(/\u2084/g, '4').replace(/\u2085/g, '5')
+      .replace(/\u2086/g, '6').replace(/\u2087/g, '7').replace(/\u2088/g, '8')
+      .replace(/\u2089/g, '9');
+  }
+
+  // Parse a single token like "8 x 132 (CH)" or "134 (C)" or "2x79(CH2)"
+  const TOKEN_RE = /(\d+)\s*[xX]\s*(\d+(?:\.\d+)?)\s*\(([^)]+)\)|(\d+(?:\.\d+)?)\s*\(([^)]+)\)/g;
+
+  function parseSignals(raw) {
+    const text = normaliseInput(raw);
+    const signals = [];
+    let m;
+    TOKEN_RE.lastIndex = 0;
+    while ((m = TOKEN_RE.exec(text)) !== null) {
+      if (m[1] !== undefined) {
+        // N x ppm (type)
+        signals.push({ count: parseInt(m[1], 10), ppm: parseFloat(m[2]), type: m[3].trim().toUpperCase() });
+      } else {
+        // ppm (type)  — count defaults to 1
+        signals.push({ count: 1, ppm: parseFloat(m[4]), type: m[5].trim().toUpperCase() });
+      }
+    }
+    return signals;
+  }
+
+  function formatType(t) {
+    // Pretty-print CH2 → CH₂ etc.
+    return t.replace(/(\d+)/g, n => n.split('').map(d => '₀₁₂₃₄₅₆₇₈₉'[+d]).join(''));
+  }
+
+  // ── main handler ─────────────────────────────────────────────────────────────
+
+  document.getElementById('analyze').addEventListener('click', () => {
+    const raw   = document.getElementById('nmr-input').value;
+    const dbeRaw = document.getElementById('dbe-input').value.trim();
+    const errEl = document.getElementById('error-msg');
+    errEl.style.display = 'none';
+
+    const signals = parseSignals(raw);
+
+    if (signals.length === 0) {
+      errEl.textContent = 'No signals could be parsed. Check the format (e.g. 8 × 132 (CH)).';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    // ── render parsed signals ──────────────────────────────────────────────────
+    const list = document.getElementById('signals-list');
+    list.innerHTML = '';
+    for (const s of signals) {
+      const region = classify(s.ppm);
+      const info   = REGION_LABELS[region];
+      const chip   = document.createElement('span');
+      chip.className = 'signal-chip';
+      chip.innerHTML =
+        `<span class="dot ${info.dot}"></span>` +
+        `${s.count > 1 ? s.count + ' × ' : ''}${s.ppm} ppm (${formatType(s.type)})`;
+      list.appendChild(chip);
+    }
+
+    // ── build classification buckets ───────────────────────────────────────────
+    const buckets = { triple: [], double: [], single: [], ac: [], af: [], unknown: [] };
+
+    // Heuristic: if there is an allene-central carbon (>200), some triple-region
+    // carbons may be allene-flanking. We flag them but put them in 'triple' by default;
+    // the flanking bucket stays 0 unless explicitly present.
+    for (const s of signals) {
+      buckets[classify(s.ppm)].push(s);
+    }
+
+    // ── render classification table ────────────────────────────────────────────
+    const cols   = ['triple', 'double', 'single', 'ac', 'af', 'unknown'];
+    const tbody  = document.getElementById('class-body');
+    tbody.innerHTML = '';
+
+    // Row 1: counts
+    const countRow = document.createElement('tr');
+    countRow.className = 'count-row';
+    for (const col of cols) {
+      const total = buckets[col].reduce((a, s) => a + s.count, 0);
+      const td = document.createElement('td');
+      td.className = REGION_LABELS[col].cls;
+      td.textContent = total;
+      countRow.appendChild(td);
+    }
+    tbody.appendChild(countRow);
+
+    // Row 2: detail (ppm list)
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'detail-row';
+    for (const col of cols) {
+      const td = document.createElement('td');
+      td.className = REGION_LABELS[col].cls;
+      td.innerHTML = buckets[col].length
+        ? buckets[col].map(s =>
+            `${s.count > 1 ? s.count+'×' : ''}${s.ppm} (${formatType(s.type)})`
+          ).join('<br>')
+        : '—';
+      detailRow.appendChild(td);
+    }
+    tbody.appendChild(detailRow);
+
+    // Total & DBE
+    const totalC = signals.reduce((a, s) => a + s.count, 0);
+    const totalLine = document.getElementById('total-line');
+    const badge = `<span class="total-badge ${totalC === 8 ? 'ok' : 'warn'}">Total carbons: ${totalC}</span>`;
+    let dbeHTML = '';
+    if (dbeRaw !== '') {
+      dbeHTML = ` &nbsp; <span class="total-badge">DBE: ${parseInt(dbeRaw, 10)}</span>`;
+    }
+    totalLine.innerHTML = badge + dbeHTML;
+    if (buckets.triple.length > 0 && buckets.ac.length > 0) {
+      totalLine.innerHTML += `<span style="color:#64748b; font-size:0.74rem; margin-left:0.75rem;">
+        * Signals at 70–100 ppm placed in Triple bond column; some may be allene flanking if an allene central (&gt;200 ppm) is present.</span>`;
+    }
+
+    document.getElementById('output').style.display = 'block';
+    document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+</script>
 </body>
 </html>
