@@ -270,8 +270,8 @@
       <span class="hint">Separate multiple signals with commas or new lines. Use × or x. CH, CH2, CH3, or C.</span>
     </div>
     <div class="field">
-      <label for="dbe-input">DBE</label>
-      <input type="number" id="dbe-input" min="0" max="50" placeholder="5" />
+      <label for="dbe-input">DBE <span style="color:#f87171">*</span></label>
+      <input type="number" id="dbe-input" min="0" max="50" />
     </div>
   </div>
   <div id="error-msg"></div>
@@ -388,8 +388,16 @@
     const dbeRaw = document.getElementById('dbe-input').value.trim();
     const errEl = document.getElementById('error-msg');
     errEl.style.display = 'none';
+    document.getElementById('dbe-input').style.borderColor = '';
 
     const signals = parseSignals(raw);
+
+    if (dbeRaw === '') {
+      errEl.textContent = 'Please enter a DBE value.';
+      errEl.style.display = 'block';
+      document.getElementById('dbe-input').style.borderColor = '#f87171';
+      return;
+    }
 
     if (signals.length === 0) {
       errEl.textContent = 'No signals could be parsed. Check the format (e.g. 8 × 132 (CH)).';
@@ -478,10 +486,7 @@
     const totalC = signals.reduce((a, s) => a + s.count, 0);
     const totalLine = document.getElementById('total-line');
     const badge = `<span class="total-badge ${totalC === 8 ? 'ok' : 'warn'}">Total carbons: ${totalC}</span>`;
-    let dbeHTML = '';
-    if (dbeRaw !== '') {
-      dbeHTML = ` &nbsp; <span class="total-badge">DBE: ${parseInt(dbeRaw, 10)}</span>`;
-    }
+    const dbeHTML = ` &nbsp; <span class="total-badge">DBE: ${parseInt(dbeRaw, 10)}</span>`;
     totalLine.innerHTML = badge + dbeHTML;
 
     // ── structural deduction ──────────────────────────────────────────────────
@@ -513,21 +518,14 @@
     sRow.appendChild(tdD);
 
     const tdR = document.createElement('td');
-    if (dbeRaw !== '') {
-      const dbeVal = parseInt(dbeRaw, 10);
-      const nRings = dbeVal - dbeFromBonds;
-      tdR.textContent = nRings >= 0 ? nRings : '?';
-      tdR.style.color = nRings >= 0 ? '#f8fafc' : '#f87171';
-      const dbeCheck = dbeFromBonds + Math.max(nRings, 0);
-      structNote.innerHTML =
-        `DBE from bonds: ${nTriple}×2 + ${nDouble}×1 = <strong style="color:#e2e8f0">${dbeFromBonds}</strong>` +
-        ` &nbsp;·&nbsp; Rings fill remaining: <strong style="color:#e2e8f0">${dbeVal} − ${dbeFromBonds} = ${
-          nRings >= 0 ? nRings : '<span style="color:#f87171">negative — check input</span>'}</strong>`;
-    } else {
-      tdR.textContent = '—';
-      tdR.style.color = '#475569';
-      structNote.textContent = 'Enter a DBE value to calculate the number of rings.';
-    }
+    const dbeVal = parseInt(dbeRaw, 10);
+    const nRings = dbeVal - dbeFromBonds;
+    tdR.textContent = nRings >= 0 ? nRings : '?';
+    tdR.style.color = nRings >= 0 ? '#f8fafc' : '#f87171';
+    structNote.innerHTML =
+      `DBE from bonds: ${nTriple}×2 + ${nDouble}×1 = <strong style="color:#e2e8f0">${dbeFromBonds}</strong>` +
+      ` &nbsp;·&nbsp; Rings fill remaining: <strong style="color:#e2e8f0">${dbeVal} − ${dbeFromBonds} = ${
+        nRings >= 0 ? nRings : '<span style="color:#f87171">negative — check input</span>'}</strong>`;
     sRow.appendChild(tdR);
     structBody.appendChild(sRow);
 
